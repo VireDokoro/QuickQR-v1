@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickQR | Generador Minimalista</title>
+    
+    <!-- Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- QRCode.js para la generación en tiempo real -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- FontAwesome para los iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Animaciones personalizadas */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-1deg); }
+            75% { transform: translateX(5px) rotate(1deg); }
+        }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .shake-animation { animation: shake 0.5s ease-in-out; }
+        
+        /* Glassmorphism effects */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Ocultar elementos visualmente pero dejarlos en el DOM */
+        .hidden-tab { display: none !important; }
+
+        /* Estilo para los inputs de color para que se vean modernos */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0;
+            overflow: hidden;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; }
+
+        /* Contenedor del QR para asegurar fondo blanco/transparente correcto */
+        #qr-container {
+            background-color: transparent;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            display: inline-block;
+        }
+        #qr-container img, #qr-container canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+        }
+        
+        /* Estilos del anuncio troll */
+        .scam-ad {
+            background: linear-gradient(45deg, #ff00cc, #3333ff);
+            border: 3px dashed #ff00cc;
+            box-shadow: 0 0 20px rgba(255, 0, 204, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen font-sans selection:bg-indigo-500 selection:text-white flex flex-col">
+
+    <header class="w-full py-6 px-4 sm:px-8 border-b border-white/5 bg-slate-950/80 backdrop-blur z-10 sticky top-0">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-600/20">
+                    <i class="fa-solid fa-qrcode text-white text-xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight text-white">Quick<span class="text-indigo-400">QR</span></h1>
+            </div>
+            <div class="text-sm text-slate-400 font-medium hidden sm:block">
+                Generador instantáneo • Sin registros
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-8 relative overflow-hidden">
+        
+        <!-- Elementos decorativos de fondo (bolas de luz) -->
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl -z-10"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl -z-10"></div>
+
+        <div class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- PANEL IZQUIERDO: Controles y Formularios -->
+            <div class="lg:col-span-7 glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl z-10">
+                
+                <h2 class="text-xl font-semibold mb-6 text-white">¿Qué quieres generar?</h2>
+                
+                <div class="flex flex-wrap gap-2 mb-8 bg-slate-900/50 p-1.5 rounded-xl border border-white/5">
+                    <button onclick="switchTab('url')" id="btn-url" class="tab-btn flex-1 min-w-[100px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all bg-indigo-600 text-white shadow-md">
+                        <i class="fa-solid fa-link mr-2"></i> URL
+                    </button>
+                    <button onclick="switchTab('text')" id="btn-text" class="tab-btn flex-1 min-w-[100px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                        <i class="fa-solid fa-font mr-2"></i> Texto
+                    </button>
+                    <button onclick="switchTab('wifi')" id="btn-wifi" class="tab-btn flex-1 min-w-[100px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                        <i class="fa-solid fa-wifi mr-2"></i> Wi-Fi
+                    </button>
+                    <button onclick="switchTab('whatsapp')" id="btn-whatsapp" class="tab-btn flex-1 min-w-[100px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                        <i class="fa-brands fa-whatsapp mr-2"></i> WhatsApp
+                    </button>
+                </div>
+
+                <div class="min-h-[220px]">
+                    <!-- Form: URL -->
+                    <div id="tab-url" class="form-tab fade-in">
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Introduce el enlace</label>
+                        <input type="url" id="input-url" placeholder="https://ejemplo.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" oninput="generateQR()">
+                    </div>
+
+                    <!-- Form: Texto -->
+                    <div id="tab-text" class="form-tab hidden-tab fade-in">
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Escribe tu mensaje o código</label>
+                        <textarea id="input-text" rows="4" placeholder="Cualquier texto que quieras ocultar en el QR..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-all resize-none" oninput="generateQR()"></textarea>
+                    </div>
+
+                    <!-- Form: Wi-Fi -->
+                    <div id="tab-wifi" class="form-tab hidden-tab fade-in space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Nombre de la Red (SSID)</label>
+                            <input type="text" id="input-wifi-ssid" placeholder="Mi_WiFi_Casa" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all" oninput="generateQR()">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Contraseña</label>
+                                <input type="password" id="input-wifi-pass" placeholder="********" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all" oninput="generateQR()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Seguridad</label>
+                                <select id="input-wifi-type" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all appearance-none" onchange="generateQR()">
+                                    <option value="WPA">WPA/WPA2</option>
+                                    <option value="WEP">WEP</option>
+                                    <option value="nopass">Sin Contraseña</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form: WhatsApp -->
+                    <div id="tab-whatsapp" class="form-tab hidden-tab fade-in space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Número de Teléfono (con prefijo)</label>
+                            <input type="tel" id="input-wa-phone" placeholder="+34 600 000 000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all" oninput="generateQR()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Mensaje predeterminado (Opcional)</label>
+                            <input type="text" id="input-wa-msg" placeholder="Hola, me interesa..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all" oninput="generateQR()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-white/5">
+                    <h3 class="text-sm font-medium text-slate-400 mb-4">Personalización Visual</h3>
+                    <div class="flex items-center gap-6">
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="color-dark" value="#ffffff" onchange="generateQR()">
+                            <span class="text-sm text-slate-300">Color QR</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="color-light" value="#000000" onchange="generateQR()">
+                            <span class="text-sm text-slate-300">Fondo</span>
+                        </div>
+                        <button onclick="resetColors()" class="ml-auto text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> Resetear
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL DERECHO: Previsualización QR -->
+            <div class="lg:col-span-5 flex flex-col items-center justify-center glass-panel rounded-3xl p-8 shadow-2xl relative z-10">
+                <div class="bg-slate-900/80 p-6 rounded-2xl w-full flex flex-col items-center justify-center border border-white/5 min-h-[350px]">
+                    
+                    <!-- Contenedor donde se dibuja el QR -->
+                    <div id="qr-container" class="bg-white transition-all duration-300 transform hover:scale-105">
+                        <!-- El QR se inyecta aquí con JS -->
+                    </div>
+
+                    <!-- Mensaje inicial -->
+                    <div id="qr-placeholder" class="text-center text-slate-500 flex flex-col items-center">
+                        <i class="fa-solid fa-qrcode text-6xl mb-4 opacity-20"></i>
+                        <p class="text-sm">Empieza a escribir para generar<br>tu código automáticamente.</p>
+                    </div>
+
+                </div>
+
+                <button id="btn-download" onclick="downloadQR()" class="mt-6 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" disabled>
+                    <i class="fa-solid fa-download"></i> Descargar PNG HD
+                </button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ANUNCIO TROLL (Aparece cada 20 segundos) -->
+    <div id="troll-ad-container" class="fixed bottom-6 right-6 max-w-sm w-full z-50 transform translate-y-[150%] transition-transform duration-500 ease-in-out">
+        <div class="scam-ad rounded-2xl p-1 relative text-center text-white overflow-hidden shadow-2xl">
+            <!-- Capa interior para el texto -->
+            <div class="bg-slate-950/90 backdrop-blur-md p-5 rounded-xl border border-white/10 h-full w-full relative z-10">
+                <!-- Botón de cerrar falso/troll -->
+                <button onclick="closeTrollAd()" class="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors w-6 h-6 flex items-center justify-center rounded-full bg-slate-800">
+                    <i class="fa-solid fa-times text-sm"></i>
+                </button>
+                
+                <div id="troll-ad-content" class="flex flex-col items-center justify-center gap-2 mt-2 cursor-pointer" onclick="clickTrollAd()">
+                    <i id="troll-ad-icon" class="fa-solid fa-sack-dollar text-4xl text-yellow-400 mb-2 shake-animation"></i>
+                    <h4 id="troll-ad-title" class="font-bold text-lg leading-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
+                        ¡Gana 5.000€ al día!
+                    </h4>
+                    <p id="troll-ad-desc" class="text-xs text-slate-300 font-medium">
+                        Haz clic en esta palmera dorada y descubre el secreto...
+                    </p>
+                    <button class="mt-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold py-1.5 px-4 rounded-full animate-pulse">
+                        RECLAMAR AHORA
+                    </button>
+                </div>
+            </div>
+            <!-- Efecto de luz giratoria del anuncio -->
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
+        </div>
+    </div>
+
+    <!-- Mensaje Toast UI -->
+    <div id="toast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50 flex items-center gap-2 border border-slate-700">
+        <i class="fa-solid fa-circle-check text-green-400"></i>
+        <span id="toast-msg">Acción completada</span>
+    </div>
+
+    <script>
+        // Variables de estado
+        let currentTab = 'url';
+        let qrcodeInstance = null;
+        const qrContainer = document.getElementById("qr-container");
+        const qrPlaceholder = document.getElementById("qr-placeholder");
+        const btnDownload = document.getElementById("btn-download");
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            
+            // Ocultar todos los formularios
+            document.querySelectorAll('.form-tab').forEach(tab => tab.classList.add('hidden-tab'));
+            
+            // Resetear estilos de botones
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                btn.classList.add('text-slate-400');
+            });
+            
+            // Mostrar formulario activo
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden-tab');
+            
+            // Resaltar botón activo
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            activeBtn.classList.remove('text-slate-400');
+            activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+
+            // Limpiar QR al cambiar para forzar al usuario a escribir
+            clearQR();
+            generateQR(); // Intentar generar con lo que haya en el nuevo tab
+        }
+
+        function clearQR() {
+            qrContainer.innerHTML = "";
+            qrContainer.style.display = "none";
+            qrPlaceholder.style.display = "flex";
+            btnDownload.disabled = true;
+        }
+
+        function resetColors() {
+            document.getElementById('color-dark').value = "#ffffff";
+            document.getElementById('color-light').value = "#000000";
+            generateQR();
+        }
+
+        function generateQR() {
+            let qrText = "";
+
+            // Obtener texto según la pestaña activa
+            if (currentTab === 'url') {
+                qrText = document.getElementById('input-url').value.trim();
+            } else if (currentTab === 'text') {
+                qrText = document.getElementById('input-text').value.trim();
+            } else if (currentTab === 'wifi') {
+                const ssid = document.getElementById('input-wifi-ssid').value.trim();
+                const pass = document.getElementById('input-wifi-pass').value.trim();
+                const type = document.getElementById('input-wifi-type').value;
+                if (ssid) {
+                    // Formato estándar para WiFi
+                    qrText = `WIFI:T:${type};S:${ssid};P:${pass};;`;
+                }
+            } else if (currentTab === 'whatsapp') {
+                const phone = document.getElementById('input-wa-phone').value.trim().replace(/\s+/g, '');
+                const msg = encodeURIComponent(document.getElementById('input-wa-msg').value.trim());
+                if (phone) {
+                    qrText = `https://wa.me/${phone}?text=${msg}`;
+                }
+            }
+
+            // Validar si hay texto
+            if (!qrText) {
+                clearQR();
+                return;
+            }
+
+            // Si hay texto, preparamos la UI
+            qrPlaceholder.style.display = "none";
+            qrContainer.style.display = "inline-block";
+            btnDownload.disabled = false;
+            
+            // Limpiar QR anterior
+            qrContainer.innerHTML = "";
+
+            // Obtener colores
+            const colorDark = document.getElementById('color-dark').value;
+            const colorLight = document.getElementById('color-light').value;
+
+            // Generar nuevo QR
+            qrcodeInstance = new QRCode(qrContainer, {
+                text: qrText,
+                width: 256,
+                height: 256,
+                colorDark : colorDark,
+                colorLight : colorLight,
+                correctLevel : QRCode.CorrectLevel.H // Alto nivel de corrección por si hay logos o bordes
+            });
+        }
+
+        function downloadQR() {
+            if (btnDownload.disabled) return;
+
+            // QRCode.js genera un canvas o un img. Buscamos ambos.
+            const canvas = qrContainer.querySelector('canvas');
+            const img = qrContainer.querySelector('img');
+            
+            let imageUrl = '';
+
+            // Preferimos la imagen generada, si no el canvas.
+            if (img && img.src && img.src.length > 100) {
+                imageUrl = img.src;
+            } else if (canvas) {
+                imageUrl = canvas.toDataURL("image/png");
+            }
+
+            if (imageUrl) {
+                const link = document.createElement('a');
+                link.href = imageUrl;
+                link.download = `QuickQR_${Date.now()}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showToast("¡QR descargado con éxito!");
+            } else {
+                // Pequeño truco/fix porque QRCode a veces tarda un milisegundo en dibujar el img
+                setTimeout(downloadQR, 100); 
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = message;
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        // Datos de los anuncios falsos
+        const trollAds = [
+            {
+                icon: "fa-sack-dollar",
+                iconColor: "text-yellow-400",
+                title: "¡Gana 5.000€ al día!",
+                desc: "Haz clic en esta palmera dorada y descubre el secreto que los bancos te ocultan.",
+                bgGradient: "from-yellow-400 to-yellow-200"
+            },
+            {
+                icon: "fa-burger",
+                iconColor: "text-orange-500",
+                title: "Pierde 40kg durmiendo",
+                desc: "El método secreto de 1998 que los nutricionistas no quieren que sepas. ¡Clica ya!",
+                bgGradient: "from-orange-500 to-red-400"
+            },
+            {
+                icon: "fa-gift",
+                iconColor: "text-pink-500",
+                title: "¡Visitante nº 1.000.000!",
+                desc: "Enhorabuena. Reclama tu iPhone 25 Pro Max de grafeno antes de que se acabe el tiempo.",
+                bgGradient: "from-pink-500 to-purple-500"
+            },
+            {
+                icon: "fa-plane-departure",
+                iconColor: "text-sky-400",
+                title: "Sé piloto comercial en 3 días",
+                desc: "Curso intensivo desde el sofá. Sin volar y sin estudiar. ¡Plazas limitadas!",
+                bgGradient: "from-sky-400 to-blue-500"
+            },
+            {
+                icon: "fa-fire",
+                iconColor: "text-red-500",
+                title: "Madres solteras a 5km",
+                desc: "Descubre quién quiere conocerte en tu zona sin salir de casa. (Click para ver fotos)",
+                bgGradient: "from-red-500 to-rose-400"
+            }
+        ];
+
+        const adContainer = document.getElementById('troll-ad-container');
+        const adIcon = document.getElementById('troll-ad-icon');
+        const adTitle = document.getElementById('troll-ad-title');
+        const adDesc = document.getElementById('troll-ad-desc');
+        
+        let adInterval;
+
+        function showTrollAd() {
+            // Seleccionar anuncio aleatorio
+            const randomAd = trollAds[Math.floor(Math.random() * trollAds.length)];
+            
+            // Actualizar contenido
+            adIcon.className = `fa-solid ${randomAd.icon} text-4xl mb-2 shake-animation ${randomAd.iconColor}`;
+            adTitle.innerText = randomAd.title;
+            adTitle.className = `font-bold text-lg leading-tight text-transparent bg-clip-text bg-gradient-to-r ${randomAd.bgGradient}`;
+            adDesc.innerText = randomAd.desc;
+
+            // Mostrar banner (quitar translate-y para que suba)
+            adContainer.classList.remove('translate-y-[150%]');
+
+            // Ocultarlo automáticamente después de 8 segundos si no lo cierra el usuario
+            setTimeout(() => {
+                hideTrollAd();
+            }, 8000);
+        }
+
+        function hideTrollAd() {
+            adContainer.classList.add('translate-y-[150%]');
+        }
+
+        // El botón de cerrar troll: a veces cierra, a veces agita el anuncio
+        function closeTrollAd() {
+            if (Math.random() > 0.5) {
+                hideTrollAd();
+                showToast("Anuncio cerrado... por ahora 😈");
+            } else {
+                adContainer.querySelector('.scam-ad').classList.add('shake-animation');
+                setTimeout(() => {
+                    adContainer.querySelector('.scam-ad').classList.remove('shake-animation');
+                }, 500);
+                showToast("Botón de cerrar defectuoso. ¡Intenta otra vez!");
+            }
+        }
+
+        function clickTrollAd() {
+            showToast("¡Casi te entra un troyano! Es broma, es un anuncio falso 🤣");
+            hideTrollAd();
+        }
+
+        // Iniciar el ciclo de anuncios: Mostrar cada 20 segundos
+        // Esperamos 5 segundos para mostrar el primero
+        setTimeout(() => {
+            showTrollAd();
+            adInterval = setInterval(showTrollAd, 20000);
+        }, 5000);
+
+        // Inicializar estado ocultando el contenedor de QR
+        clearQR();
+
+    </script>
+</body>
+</html>
